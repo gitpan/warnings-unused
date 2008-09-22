@@ -15,7 +15,9 @@ README
 t/00_load.t
 t/01_unused.t
 t/02_used.t
+t/03_in_mod.t
 t/99_pod-coverage.t
 t/99_pod.t
+t/tlib/Foo.pm
 unused.pm
 unused.xs

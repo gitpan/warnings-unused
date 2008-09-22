@@ -1,33 +1,32 @@
 #!perl -w
+use 5.008_001;
 use strict;
-use warnings::unused;
 use warnings;
+use warnings::unused;
 
-my $a_unused = 42; # unused
+my $a_unused; # unused
 
 sub foo{
-	{
-		my $a; # ok
-		$a++;
-
-	}
-
-	my @bar = (2);
-
-	my %baz = (foo => 0);
+	our $global = sub{
+		my $a_unused; # shadowing
+		$a_unused++;
+		$a_unused++;
+	};
 
 	my %b_unused;
 
-	if($baz{foo}++){
-		my $c_unused = sub{ @bar };
+	my @bar;
+	eval{
+		die;
+		my $c_unused = sub{ @bar }; # not reached, but checked
+	};
 
-	}
-
-	return my $d_unused = 10;
-
+	return \my $d_unused; # possibly used, but complained
 }
 
 {
-	no warnings 'unused';
-	my $xyz; # unused but 'unused' is disabled
+	no warnings 'once';
+	my $xyz; # unused but the warning is disabled
 }
+
+print "done.\n";

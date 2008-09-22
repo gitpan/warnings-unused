@@ -4,8 +4,8 @@ warnings::unused - Produces warnings when unused variables are detected
 
 SYNOPSIS
 
-	use warnings::unused;
-	use warnings;
+	use warnings::unused; # installs the check routine as 'once'
+	use warnings 'once';  # enables  the check routine
 
 INSTALLATION
 

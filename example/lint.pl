@@ -5,7 +5,8 @@
 use strict;
 use Module::Load;
 
-use warnings::unused;
-use warnings::method;
+require warnings::unused;
+
+eval{ require warnings::method }; # optional
 
 load($_) for @ARGV;

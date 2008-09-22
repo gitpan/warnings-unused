@@ -1,5 +1,11 @@
 Revision history for warnings::unused
 
+0.01 Mon Sep 22 09:09:07 2008
+	- change the warning category from 'unused' to 'once'
+	- fix many bugs
+	- add LIMITATIONS section to the pod
+	- add more tests
+	- internal cleanup
 
 0.001 Sat Sep 20 11:48:25 2008
 	- original version; created by Module::Starter
