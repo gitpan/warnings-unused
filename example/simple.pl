@@ -16,10 +16,9 @@ sub foo{
 	my %b_unused;
 
 	my @bar;
-	eval{
-		die;
+	if(0){
 		my $c_unused = sub{ @bar }; # not reached, but checked
-	};
+	}
 
 	return \my $d_unused; # possibly used, but complained
 }

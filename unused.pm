@@ -4,10 +4,22 @@ use 5.008_001;
 
 use strict;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use XSLoader;
 XSLoader::load(__PACKAGE__, $VERSION);
+
+sub import{
+	shift;
+	if(@_){
+		_set_mode(1, @_);
+	}
+
+	$^H |= 0x00020000; # HINT_LOCALIZE_HH
+	$^H{(__PACKAGE__)} = 1;
+
+	return;
+}
 
 1;
 __END__
@@ -18,14 +30,17 @@ warnings::unused - Produces warnings when unused variables are detected
 
 =head1 VERSION
 
-This document describes warnings::unused version 0.01
+This document describes warnings::unused version 0.02
 
 =head1 SYNOPSIS
 
 	use warnings::unused; # installs the check routine as 'once'
-	use warnings 'once';  # enables  the check routine
 
-	
+	use warnings 'once';  # enables  the check routine
+	# or
+	use warnings;         # enables all warnings,
+	                      # including warnings::unused
+
 	sub foo{
 		my($x, $y) = @_; # WARN: Unused variable my $x
 
@@ -36,7 +51,13 @@ This document describes warnings::unused version 0.01
 		my    $x; # WARN
 		state $y; # WARN
 		our   $z; # OK, it's global
+
+		no warnings 'once';
+		my $unused; # OK, the unused warnings are disabled
 	}
+
+	# as commmand line
+	$ perl -Mwarnings::unused=-global -e 'use Foo'
 
 
 =head1 DESCRIPTION
@@ -74,6 +95,15 @@ execution.
 
 =head1 INTERFACE
 
+=head2 C<use warnings::unused> or C<use warnings::unused -lexical>
+
+Installs the C<unused> check routine with lexical scope.
+
+=head2 C<use warnings::unused -global>
+
+Installs the C<unused> check routine with global scope,
+where this pragma checks all programs.
+
 =head2 C<use/no warnings 'once';>
 
 Enables/Disables the C<unused> warnings.
@@ -108,7 +138,7 @@ Perl 5.8.1 or later, and a C compiler.
 
 =head1 BUGS
 
-No bugs have been reported.
+There might be bugs.
 
 Please report any bugs or feature requests to
 C<bug-warnings-unused@rt.cpan.org/>, or through the web interface at
@@ -125,6 +155,8 @@ L<warnings::method>.
 L<B::Lint>.
 
 L<Perl::Critic>.
+
+L<Perl::Critic::Policy::Variables::ProhibitUnusedVariables>.
 
 =head1 AUTHOR
 

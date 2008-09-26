@@ -1,4 +1,4 @@
-#!perl
+#!perl -w
 
 use strict;
 use Test::More tests => 1;
@@ -7,7 +7,11 @@ use File::Spec;
 use FindBin qw($Bin);
 use lib File::Spec->join($Bin, 'tlib');
 
+use XSLoader; # preload
+
 use Test::Warn;
+
+use warnings::unused -global; # enabled even in other files
 
 sub make_pat{
 	my $n = shift;
@@ -18,6 +22,6 @@ sub make_pat{
 warnings_like
 	{ require Foo }
 	[ make_pat(7)],
-	'in a module';
+	'-global';
 
 

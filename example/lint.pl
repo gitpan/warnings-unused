@@ -5,7 +5,7 @@
 use strict;
 use Module::Load;
 
-require warnings::unused;
+use warnings::unused -global;
 
 eval{ require warnings::method }; # optional
 

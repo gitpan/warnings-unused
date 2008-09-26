@@ -2,7 +2,6 @@ package
 	Foo;
 
 use strict;
-use warnings::unused;
 use warnings;
 
 my $a_unused = 42;

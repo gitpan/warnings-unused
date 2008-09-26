@@ -33,11 +33,14 @@ See also:
 #	endif
 #endif
 
+#define HINT_KEY "warnings::unused"
+
 #define SCOPE_KEY ((UV)PL_savestack_ix)
 
 #define MY_CXT_KEY "warnings::unused::_guts" XS_VERSION /* for backward compatibility */
 
 #define WARN_UNUSED WARN_ONCE
+
 
 #define MESSAGE "Unused variable %s %s at %s line %"IVdf".\n"
 
@@ -47,8 +50,69 @@ typedef struct{
 	AV* vars;
 	SV* scope_depth;
 	U32 scope_depth_hash;
+
+	bool global;
 } my_cxt_t;
 START_MY_CXT;
+
+#ifdef DEBUGGING
+void dump_vars(void);
+void
+dump_vars(void){
+	dTHX; dVAR;
+	dMY_CXT;
+	I32 len = av_len(MY_CXT.vars)+1;
+
+	I32 i;
+	PerlIO_printf(PerlIO_stderr(), "cxt vars at %s line %"IVdf, OutCopFILE(PL_curcop), (IV)CopLINE(PL_curcop));
+	for(i = 0; i < len; i++){
+		HE* he;
+		HV* hv = (HV*)SvRV(*av_fetch(MY_CXT.vars, i, FALSE));
+		PerlIO_printf(PerlIO_stderr(), "  var table:\n");
+		hv_iterinit(hv);
+		while((he = hv_iternext(hv))){
+			if(SvOK(HeVAL(he))){
+				if(SvPOK(HeVAL(he))){
+					PerlIO_printf(PerlIO_stderr(), "    %s unused\n", HeKEY(he));
+				}
+				else{
+					PerlIO_printf(PerlIO_stderr(), "    %s=%"UVuf"\n", HeKEY(he), SvUVX(HeVAL(he)));
+				}
+			}
+			else{
+				PerlIO_printf(PerlIO_stderr(), "    %s\n", HeKEY(he));
+			}
+		}
+	}
+}
+#endif
+
+#define wl_enabled() (ckWARN(WARN_UNUSED) && wl_scope_enabled(aTHX_ aMY_CXT))
+
+static int
+wl_scope_enabled(pTHX_ pMY_CXT){
+	if(MY_CXT.global){
+		return TRUE;
+	}
+
+#if PERL_REVISION == 5 && PERL_VERSION >= 10
+	if(PL_curcop->cop_hints_hash){
+		SV* sv = Perl_refcounted_he_fetch(aTHX_
+				PL_curcop->cop_hints_hash, Nullsv,
+				HINT_KEY, sizeof(HINT_KEY)-1, FALSE, 0);
+		return sv && SvTRUE(sv);
+	}
+
+#else
+	/* XXX: It may not work with other modules that use HINT_LOCALIZE_HH */
+	if(PL_hints & HINT_LOCALIZE_HH){
+		//SV** svp = hv_fetchs(GvHV(PL_hintgv), HINT_KEY, FALSE);
+
+		return TRUE; //svp && SvTRUE(*svp);
+	}
+#endif
+	return FALSE;
+}
 
 static UV
 wl_fetch_scope_depth(pTHX_ pMY_CXT_ HV* tab){
@@ -158,7 +222,7 @@ wl_ck_padany(pTHX_ OP* o){
 		/* declaration */
 		if(PL_in_my){
 			SV* msg;
-			if(ckWARN(WARN_UNUSED)){
+			if(wl_enabled()){
 				msg = Perl_newSVpvf(aTHX_
 					MESSAGE,
 					PL_in_my == KEY_my ? "my" : "state",
@@ -173,22 +237,18 @@ wl_ck_padany(pTHX_ OP* o){
 		}
 		/* use */
 		else{
-			SV** svp;
+			SV** svp = NULL;
 			I32 i = av_len(MY_CXT.vars)+1;
 
 			/* search for the variable until it's found */
 			while(!(svp = hv_fetch(hv, name, namelen, FALSE))){
-				SV* href;
+				if(i <= 0) break;
 
-				assert(i > 0); /* really? */
-				href = AvARRAY(MY_CXT.vars)[--i];
-
-				hv = (HV*)SvRV(href);
+				--i;
+				hv = (HV*)SvRV( AvARRAY(MY_CXT.vars)[i] );
 			}
 
-			/* must be found */
-			assert(svp);
-			if(SvOK(*svp)){
+			if(svp && SvOK(*svp)){ /* found */
 				SvREFCNT_dec(*svp);
 				*svp = &PL_sv_undef;
 			}
@@ -228,19 +288,40 @@ BOOT:
 	MY_CXT.vars = newAV();
 	MY_CXT.scope_depth = newSVpvs("scope_depth");
 	PERL_HASH(MY_CXT.scope_depth_hash, "scope_depth", sizeof("scope_depth")-1);
+	MY_CXT.global = FALSE;
 	/* the stack of varible tables */
 	/* the root variable table */
 	wl_push_scope(aTHX_ aMY_CXT_ (UV)1);
 	/* install check hooks */
-	old_ck_padany = PL_check[OP_PADANY];
-	PL_check[OP_PADANY] = wl_ck_padany;
-	old_ck_padsv = PL_check[OP_PADSV];
-	PL_check[OP_PADSV] = wl_ck_padany;
-	old_ck_leavesub = PL_check[OP_LEAVESUB];
-	PL_check[OP_LEAVESUB] = wl_ck_leavesub;
-	old_ck_leaveeval = PL_check[OP_LEAVEEVAL];
-	PL_check[OP_LEAVEEVAL] = wl_ck_leaveeval;
+	{
+		old_ck_padany = PL_check[OP_PADANY];
+		PL_check[OP_PADANY] = wl_ck_padany;
+		old_ck_padsv = PL_check[OP_PADSV];
+		PL_check[OP_PADSV] = wl_ck_padany;
+		old_ck_leavesub = PL_check[OP_LEAVESUB];
+		PL_check[OP_LEAVESUB] = wl_ck_leavesub;
+		old_ck_leaveeval = PL_check[OP_LEAVEEVAL];
+		PL_check[OP_LEAVEEVAL] = wl_ck_leaveeval;
+	}
 }
+
+void
+_set_mode(enabled, mode)
+	bool enabled
+	const char* mode
+PREINIT:
+	dMY_CXT;
+CODE:
+	if(strEQ(mode, "-global")){
+		MY_CXT.global = enabled;
+	}
+	else if(strEQ(mode, "-lexical")){
+		MY_CXT.global = !enabled;
+	}
+	else{
+		Perl_croak(aTHX_ "Unknown mode %s", mode);
+	}
+
 
 void
 END(...)
