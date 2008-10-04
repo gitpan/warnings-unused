@@ -4,7 +4,7 @@ use 5.008_001;
 
 use strict;
 
-our $VERSION = '0.02';
+our $VERSION = '0.021';
 
 use XSLoader;
 XSLoader::load(__PACKAGE__, $VERSION);
@@ -30,7 +30,7 @@ warnings::unused - Produces warnings when unused variables are detected
 
 =head1 VERSION
 
-This document describes warnings::unused version 0.02
+This document describes warnings::unused version 0.021
 
 =head1 SYNOPSIS
 
