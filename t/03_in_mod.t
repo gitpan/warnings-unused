@@ -11,7 +11,7 @@ use XSLoader; # preload
 
 use Test::Warn;
 
-use warnings::unused -global; # enabled even in other files
+use warnings::unused -global;
 
 sub make_pat{
 	my $n = shift;

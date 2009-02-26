@@ -14,4 +14,4 @@ use warnings::unused -lexical; # it's lexical by default
 
 warning_is{
 	require Foo;
-} [], '-lexical';
+} [], '-lexical (RT 39508)';

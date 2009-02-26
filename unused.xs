@@ -22,8 +22,11 @@ See also:
 
 #include "ppport.h"
 
+
 /* Since these APIs are not public, the definitions are a little complicated */
-#if PERL_REVISION == 5 && PERL_VERSION >= 10 /* >= 5.10.0 */
+
+#if PERL_BCDVERSION >= 0x5010000
+#	undef  PL_tokenbuf /* defined by ppport.h */
 #	define PL_tokenbuf (PL_parser->tokenbuf)
 #	define PL_in_my    (PL_parser->in_my)
 #else
@@ -44,8 +47,6 @@ See also:
 
 #define MESSAGE "Unused variable %s %s at %s line %"IVdf".\n"
 
-typedef OP* (*check_t)(pTHX_ OP* op);
-
 typedef struct{
 	AV* vars;
 	SV* scope_depth;
@@ -55,19 +56,19 @@ typedef struct{
 } my_cxt_t;
 START_MY_CXT;
 
-#ifdef DEBUGGING
-void dump_vars(void);
-void
-dump_vars(void){
-	dTHX; dVAR;
+#ifdef WU_DEBUGGING
+#define dump_vars() wl_dump_vars(aTHX)
+static void
+wl_dump_vars(pTHX){
 	dMY_CXT;
-	I32 len = av_len(MY_CXT.vars)+1;
-
+	I32 const len = av_len(MY_CXT.vars)+1;
 	I32 i;
-	PerlIO_printf(PerlIO_stderr(), "cxt vars at %s line %"IVdf, OutCopFILE(PL_curcop), (IV)CopLINE(PL_curcop));
-	for(i = 0; i < len; i++){
+
+	PerlIO_printf(PerlIO_stderr(), "vars at %s line %"IVdf".\n", OutCopFILE(PL_curcop), (IV)CopLINE(PL_curcop));
+	for(i = 1; i < len; i++){
+		HV* const hv = (HV*)SvRV(*av_fetch(MY_CXT.vars, i, FALSE));
 		HE* he;
-		HV* hv = (HV*)SvRV(*av_fetch(MY_CXT.vars, i, FALSE));
+
 		PerlIO_printf(PerlIO_stderr(), "  var table:\n");
 		hv_iterinit(hv);
 		while((he = hv_iternext(hv))){
@@ -85,6 +86,8 @@ dump_vars(void){
 		}
 	}
 }
+#else /* !WU_DEBUGGING */
+#define dump_vars() NOOP
 #endif
 
 #define wl_enabled() (ckWARN(WARN_UNUSED) && wl_scope_enabled(aTHX_ aMY_CXT))
@@ -95,9 +98,9 @@ wl_scope_enabled(pTHX_ pMY_CXT){
 		return TRUE;
 	}
 
-#if PERL_REVISION == 5 && PERL_VERSION >= 10
+#if PERL_BCDVERSION >= 0x5010000
 	if(PL_curcop->cop_hints_hash){
-		SV* sv = Perl_refcounted_he_fetch(aTHX_
+		SV* const sv = Perl_refcounted_he_fetch(aTHX_
 				PL_curcop->cop_hints_hash, Nullsv,
 				HINT_KEY, sizeof(HINT_KEY)-1, FALSE, 0);
 		return sv && SvTRUE(sv);
@@ -115,16 +118,16 @@ wl_scope_enabled(pTHX_ pMY_CXT){
 }
 
 static UV
-wl_fetch_scope_depth(pTHX_ pMY_CXT_ HV* tab){
-	HE* he = hv_fetch_ent(tab, MY_CXT.scope_depth, FALSE, MY_CXT.scope_depth_hash);
+wl_fetch_scope_depth(pTHX_ pMY_CXT_ HV* const tab){
+	HE* const he = hv_fetch_ent(tab, MY_CXT.scope_depth, FALSE, MY_CXT.scope_depth_hash);
 	assert(he);
 
 	return SvUVX(HeVAL(he));
 }
 
 static HV*
-wl_push_scope(pTHX_ pMY_CXT_ UV key){
-	HV* hv = newHV();
+wl_push_scope(pTHX_ pMY_CXT_ UV const key){
+	HV* const hv = newHV();
 
 	hv_store_ent(hv, MY_CXT.scope_depth, newSVuv(key), MY_CXT.scope_depth_hash);
 	av_push(MY_CXT.vars, newRV_noinc((SV*)hv));
@@ -133,16 +136,15 @@ wl_push_scope(pTHX_ pMY_CXT_ UV key){
 }
 
 static void
-wl_flush(pTHX_ UV key){
+wl_flush(pTHX_ UV const key){
 	dMY_CXT;
 	IV i = av_len(MY_CXT.vars) + 1;
-
 	while(--i > 0){
-		SV* hvref = *av_fetch(MY_CXT.vars, i, FALSE);
-		HV* tab;
+		SV* const hvref = *av_fetch(MY_CXT.vars, i, FALSE);
+		HV* const tab   = (HV*)SvRV(hvref);
 		HE* he;
 
-		tab = (HV*)SvRV(hvref);
+		assert(SvTYPE(tab) == SVt_PVHV);
 
 		if(wl_fetch_scope_depth(aTHX_ aMY_CXT_ tab) < key){
 			break;
@@ -164,12 +166,10 @@ wl_flush(pTHX_ UV key){
 }
 
 static HV*
-wl_fetch_tab(pTHX_ pMY_CXT_ UV key){
+wl_fetch_tab(pTHX_ pMY_CXT_ UV const key){
+	SV* top = *av_fetch(MY_CXT.vars, -1, FALSE);
 	HV* tab;
 	UV top_depth;
-	SV* top;
-
-	top = *av_fetch(MY_CXT.vars, -1, FALSE);
 
 	assert(SvROK(top));
 	assert(SvTYPE(SvRV(top)) == SVt_PVHV);
@@ -182,6 +182,8 @@ wl_fetch_tab(pTHX_ pMY_CXT_ UV key){
 		tab = wl_push_scope(aTHX_ aMY_CXT_ key);
 	}
 	else{ /*top_depth >= key */
+
+		/* pop scope if needed */
 		while(top_depth > key){
 			HE* he;
 
@@ -207,22 +209,33 @@ wl_fetch_tab(pTHX_ pMY_CXT_ UV key){
 	return tab;
 }
 
-static check_t old_ck_padsv  = NULL;
-static check_t old_ck_padany = NULL;
+static Perl_check_t old_ck_padsv  = NULL;
+static Perl_check_t old_ck_padany = NULL;
 static OP*
-wl_ck_padany(pTHX_ OP* o){
+wl_ck_padany(pTHX_ OP* const o){
 	if(PL_in_my != KEY_our){
 		dMY_CXT;
-		const char* name = PL_tokenbuf;
-		STRLEN namelen = strlen(name);
+		const char* const name = PL_tokenbuf;
+		STRLEN const namelen = strlen(name);
 		HV* hv = wl_fetch_tab(aTHX_ aMY_CXT_ SCOPE_KEY);
 
-		//warn("# SCOPE_KEY=%"UVuf, (UV)SCOPE_KEY);
-
+#if 0
+		/* NOTE: The last resort is to consider PL_hints */
+		PerlIO_printf(PerlIO_stderr(),
+			"[%d] $^H=0x%x at %s line %"IVdf".\n",
+			(int)SCOPE_KEY, (unsigned)PL_hints, OutCopFILE(PL_curcop), (IV)CopLINE(PL_curcop));
+#endif
 		/* declaration */
 		if(PL_in_my){
+			SV** const svp = hv_fetch(hv, name, namelen, FALSE);
 			SV* msg;
+
+			if(svp && SvOK(*svp)){ /* shadowing */
+				Perl_warner(aTHX_ WARN_UNUSED, "%" SVf, *svp);
+			}
+
 			if(wl_enabled()){
+
 				msg = Perl_newSVpvf(aTHX_
 					MESSAGE,
 					PL_in_my == KEY_my ? "my" : "state",
@@ -230,14 +243,14 @@ wl_ck_padany(pTHX_ OP* o){
 					OutCopFILE(PL_curcop), (IV)CopLINE(PL_curcop));
 			}
 			else{
-				msg = &PL_sv_undef; /* watches but doesn't complain */
+				msg = &PL_sv_undef; /* marks but doesn't complain about it */
 			}
 
-			hv_store(hv, name, namelen, msg, 0);
+			hv_store(hv, name, namelen, msg, 0U);
 		}
 		/* use */
 		else{
-			SV** svp = NULL;
+			SV** svp;
 			I32 i = av_len(MY_CXT.vars)+1;
 
 			/* search for the variable until it's found */
@@ -250,32 +263,47 @@ wl_ck_padany(pTHX_ OP* o){
 
 			if(svp && SvOK(*svp)){ /* found */
 				SvREFCNT_dec(*svp);
-				*svp = &PL_sv_undef;
+				*svp = &PL_sv_undef; /* mark as used */
 			}
 
 		}
+
+		//dump_vars();
 	}
 	return o->op_type == OP_PADSV
 		? old_ck_padsv (aTHX_ o)
 		: old_ck_padany(aTHX_ o);
 }
 
-/* flush on the end of subroutines */
-static check_t old_ck_leavesub = NULL;
+static Perl_check_t old_ck_leaveloop = NULL;
+static Perl_check_t old_ck_leavesub  = NULL;
+static Perl_check_t old_ck_leaveeval = NULL;
+
+/* flush on the end of the scope */
 static OP*
-wl_ck_leavesub(pTHX_ OP* o){
+wl_ck_leave(pTHX_ OP* const o){
+	Perl_check_t ck_proc;
+
 	wl_flush(aTHX_ SCOPE_KEY);
 
-	return old_ck_leavesub(aTHX_ o);
-}
+	switch(o->op_type){
+	case OP_LEAVELOOP:
+		ck_proc = old_ck_leaveloop;
+		break;
+	case OP_LEAVESUB:
+		ck_proc = old_ck_leavesub;
+		break;
+	case OP_LEAVEEVAL:
+		ck_proc = old_ck_leaveeval;
+		break;
+	default:
+		ck_proc = NULL;
+	}
+	assert(ck_proc);
 
-/* flush on the end of evals, mainly for testing and debugging */
-static check_t old_ck_leaveeval = NULL;
-static OP*
-wl_ck_leaveeval(pTHX_ OP* o){
-	wl_flush(aTHX_ SCOPE_KEY);
+	//PerlIO_printf(PerlIO_stderr(), "[%s] at %s line %"IVdf".\n", OP_NAME(o), OutCopFILE(PL_curcop), (IV)CopLINE(PL_curcop));
 
-	return old_ck_leaveeval(aTHX_ o);
+	return ck_proc(aTHX_ o);
 }
 
 MODULE = warnings::unused		PACKAGE = warnings::unused
@@ -296,27 +324,33 @@ BOOT:
 	{
 		old_ck_padany = PL_check[OP_PADANY];
 		PL_check[OP_PADANY] = wl_ck_padany;
+
 		old_ck_padsv = PL_check[OP_PADSV];
 		PL_check[OP_PADSV] = wl_ck_padany;
+
+		/* leave scope */
 		old_ck_leavesub = PL_check[OP_LEAVESUB];
-		PL_check[OP_LEAVESUB] = wl_ck_leavesub;
+		PL_check[OP_LEAVESUB] = wl_ck_leave;
+
 		old_ck_leaveeval = PL_check[OP_LEAVEEVAL];
-		PL_check[OP_LEAVEEVAL] = wl_ck_leaveeval;
+		PL_check[OP_LEAVEEVAL] = wl_ck_leave;
+
+		old_ck_leaveloop = PL_check[OP_LEAVELOOP];
+		PL_check[OP_LEAVELOOP] = wl_ck_leave;
 	}
 }
 
 void
-_set_mode(enabled, mode)
-	bool enabled
+_set_mode(mode)
 	const char* mode
 PREINIT:
 	dMY_CXT;
 CODE:
 	if(strEQ(mode, "-global")){
-		MY_CXT.global = enabled;
+		MY_CXT.global = TRUE;
 	}
 	else if(strEQ(mode, "-lexical")){
-		MY_CXT.global = !enabled;
+		MY_CXT.global = FALSE;
 	}
 	else{
 		Perl_croak(aTHX_ "Unknown mode %s", mode);

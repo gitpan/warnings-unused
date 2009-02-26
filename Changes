@@ -1,7 +1,11 @@
 Revision history for warnings::unused
 
 TODO:
-	* 1.00 - change the implementation based on PL_peepp
+	* to be based on PL_peepp?
+
+0.03 Thu Feb 26 16:22:31 2009
+	- fix a multi-scope problem (RT 41639)
+	- update ppport.h
 
 0.021 Sat Oct  4 15:03:44 2008
 	- re-packageing
@@ -10,7 +14,6 @@ TODO:
 0.02 Fri Sep 26 13:14:44 2008
 	- change to work as a lexical pragma (RT 39508)
 	- fix a segv (RT 39563)
-
 
 0.01 Mon Sep 22 09:09:07 2008
 	- change the warning category from 'unused' to 'once'

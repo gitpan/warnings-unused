@@ -4,7 +4,7 @@ use 5.008_001;
 
 use strict;
 
-our $VERSION = '0.021';
+our $VERSION = '0.03';
 
 use XSLoader;
 XSLoader::load(__PACKAGE__, $VERSION);
@@ -12,7 +12,7 @@ XSLoader::load(__PACKAGE__, $VERSION);
 sub import{
 	shift;
 	if(@_){
-		_set_mode(1, @_);
+		_set_mode(@_); # '-global' or '-lexical'
 	}
 
 	$^H |= 0x00020000; # HINT_LOCALIZE_HH
@@ -30,7 +30,7 @@ warnings::unused - Produces warnings when unused variables are detected
 
 =head1 VERSION
 
-This document describes warnings::unused version 0.021
+This document describes warnings::unused version 0.03
 
 =head1 SYNOPSIS
 
@@ -39,7 +39,7 @@ This document describes warnings::unused version 0.021
 	use warnings 'once';  # enables  the check routine
 	# or
 	use warnings;         # enables all warnings,
-	                      # including warnings::unused
+	                      # including this module
 
 	sub foo{
 		my($x, $y) = @_; # WARN: Unused variable my $x
@@ -49,16 +49,14 @@ This document describes warnings::unused version 0.021
 
 	sub bar{
 		my    $x; # WARN
-		state $y; # WARN
-		our   $z; # OK, it's global
+		our   $y; # OK, it's global
 
 		no warnings 'once';
 		my $unused; # OK, the unused warnings are disabled
 	}
 
-	# as commmand line
-	$ perl -Mwarnings::unused=-global -e 'use Foo'
-
+	# Or from commmand line:
+	# perl -Mwarnings::unused=-global -e 'use Foo'
 
 =head1 DESCRIPTION
 
@@ -108,8 +106,8 @@ where this pragma checks all programs.
 
 Enables/Disables the C<unused> warnings.
 
-Note that the C<once> warning is defined by default, so you can always use it
-even if C<warnings::unused> is not loaded.
+Note that the C<once> warning is defined by default, so you can use it
+anywhare, even if C<warnings::unused> is not loaded.
 
 =head1 LIMITATIONS
 
@@ -164,7 +162,7 @@ Goro Fuji E<lt>gfuji(at)cpan.orgE<gt>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2008, Goro Fuji E<lt>gfuji(at)cpan.orgE<gt>. Some rights reserved.
+Copyright (c) 2008-2009, Goro Fuji E<lt>gfuji(at)cpan.orgE<gt>. Some rights reserved.
 
 This module is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

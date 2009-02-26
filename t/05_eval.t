@@ -11,7 +11,7 @@ use Test::More tests => 2;
 use Test::Warn;
 
 
-is(1,1, 'RT xxx');
+is(1,1, 'RT 39563');
 
 f();
 

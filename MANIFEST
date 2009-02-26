@@ -1,8 +1,9 @@
 .cvsignore
 Changes
-example/lint.pl
+example/lint-unused.pl
 example/simple.pl
 inc/Module/Install.pm
+inc/Module/Install/AuthorTests.pm
 inc/Module/Install/Base.pm
 inc/Module/Install/Makefile.pm
 inc/Module/Install/MakeMaker.pm
@@ -18,8 +19,10 @@ t/02_used.t
 t/03_in_mod.t
 t/04_lexical.t
 t/05_eval.t
-t/99_pod-coverage.t
-t/99_pod.t
+t/06_multiscope.t
 t/tlib/Foo.pm
 unused.pm
 unused.xs
+xt/01_pod.t
+xt/02_pod-coverage.t
+xt/03_synopsis_syntax.t
