@@ -4,7 +4,7 @@ use 5.008_001;
 
 use strict;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use XSLoader;
 XSLoader::load(__PACKAGE__, $VERSION);
@@ -30,7 +30,7 @@ warnings::unused - Produces warnings when unused variables are detected
 
 =head1 VERSION
 
-This document describes warnings::unused version 0.03
+This document describes warnings::unused version 0.04.
 
 =head1 SYNOPSIS
 
@@ -88,8 +88,8 @@ You should write C<f()> like this:
 Here, one will see the obvious intention to ignore the first argument of
 C<f()>.
 
-The check routine works only at the compile time, having no effect on
-execution.
+The check routine works only at the compile time, so it affect nothing
+about the run time.
 
 =head1 INTERFACE
 

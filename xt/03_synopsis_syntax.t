@@ -1,21 +1,6 @@
-#!perl -w
+#!perl
 
-use strict;
-use Test::More tests => 1;
-
-use warnings::unused ();
-
-my $content = do{
-	local $/;
-	open my $in, '<', $INC{'warnings/unused.pm'};
-	<$in>;
-};
-
-my($synopsis) = $content =~ m{
-	^=head1 \s+ SYNOPSIS
-	(.+)
-	^=head1 \s+ DESCRIPTION
-}xms;
-
-no warnings 'once';
-ok eval("sub{ $synopsis }"), 'syntax ok' or diag $@;
+use Test::More;
+eval "use Test::Synopsis";
+plan skip_all => "Test::Synopsis required for testing" if $@;
+all_synopsis_ok();

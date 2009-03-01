@@ -17,7 +17,7 @@ sub foo{
 
 	my @bar;
 	if(0){
-		my $c_unused = sub{ @bar }; # not reached, but checked
+		my $c_unused = sub{ @bar }; # never reached, but checked
 	}
 
 	return \my $d_unused; # possibly used, but complained

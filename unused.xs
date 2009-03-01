@@ -146,7 +146,7 @@ wl_flush(pTHX_ UV const key){
 
 		assert(SvTYPE(tab) == SVt_PVHV);
 
-		if(wl_fetch_scope_depth(aTHX_ aMY_CXT_ tab) < key){
+		if(wl_fetch_scope_depth(aTHX_ aMY_CXT_ tab) <= key){
 			break;
 		}
 
@@ -362,4 +362,3 @@ END(...)
 CODE:
 	PERL_UNUSED_VAR(items);
 	wl_flush(aTHX_ 0);
-

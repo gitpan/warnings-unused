@@ -5,7 +5,7 @@ use inc::Module::Install;
 
 name 'warnings-unused';
 
-all_from 'unused.pm';
+all_from 'lib/warnings/unused.pm';
 
 requires 'XSLoader'   => 0.06;
 
