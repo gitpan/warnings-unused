@@ -2,17 +2,17 @@
 package Module::Install::MakeMaker;
 
 use strict;
-use Module::Install::Base;
-use ExtUtils::MakeMaker ();
+use ExtUtils::MakeMaker   ();
+use Module::Install::Base ();
 
-use vars qw{$VERSION $ISCORE @ISA};
+use vars qw{$VERSION @ISA $ISCORE};
 BEGIN {
-	$VERSION = '0.77';
+	$VERSION = '1.06';
+	@ISA     = 'Module::Install::Base';
 	$ISCORE  = 1;
-	@ISA     = qw{Module::Install::Base};
 }
 
-my $makefile;
+my $makefile = undef;
 
 sub WriteMakefile {
     my ($self, %args) = @_;
@@ -33,6 +33,12 @@ sub WriteMakefile {
     if (my $prereq = delete($args{PREREQ_PM})) {
         while (my($k,$v) = each %$prereq) {
             $self->requires($k,$v);
+        }
+    }
+
+    if (my $prereq = delete($args{BUILD_REQUIRES})) {
+        while (my($k,$v) = each %$prereq) {
+            $self->build_requires($k,$v);
         }
     }
 

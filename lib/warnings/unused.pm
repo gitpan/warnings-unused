@@ -4,7 +4,7 @@ use 5.008_001;
 
 use strict;
 
-our $VERSION = '0.04';
+our $VERSION = '0.06';
 
 use XSLoader;
 XSLoader::load(__PACKAGE__, $VERSION);
@@ -30,7 +30,7 @@ warnings::unused - Produces warnings when unused variables are detected
 
 =head1 VERSION
 
-This document describes warnings::unused version 0.04.
+This document describes warnings::unused version 0.06.
 
 =head1 SYNOPSIS
 
@@ -59,6 +59,8 @@ This document describes warnings::unused version 0.04.
 	# perl -Mwarnings::unused=-global -e 'use Foo'
 
 =head1 DESCRIPTION
+
+B<Note:> The author no longer maintain this module. Consider L<Test::Vars> if you detect unused vars as a unit test.
 
 This pragmatic module extends lexical warnings to complain about unused
 variables.
@@ -133,16 +135,6 @@ To avoid unexpected warnings, you can use the C<no warnings 'once'> directive.
 =head1 DEPENDENCIES
 
 Perl 5.8.1 or later, and a C compiler.
-
-=head1 BUGS
-
-There might be bugs.
-
-Please report any bugs or feature requests to
-C<bug-warnings-unused@rt.cpan.org/>, or through the web interface at
-L<http://rt.cpan.org/>.
-
-Patches are welcome.
 
 =head1 SEE ALSO
 
